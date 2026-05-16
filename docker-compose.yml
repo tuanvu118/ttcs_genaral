@@ -32,6 +32,9 @@ x-common-environment: &common-environment
   RABBITMQ_REGISTRATION_SYNC_EXCHANGE: ${RABBITMQ_REGISTRATION_SYNC_EXCHANGE:-registration.sync.events}
   RABBITMQ_REGISTRATION_SYNC_QUEUE: ${RABBITMQ_REGISTRATION_SYNC_QUEUE:-registration.sync.queue}
   RABBITMQ_REGISTRATION_SYNC_ROUTING_KEY: ${RABBITMQ_REGISTRATION_SYNC_ROUTING_KEY:-registration.sync.requested}
+  RABBITMQ_CHECKIN_SYNC_EXCHANGE: ${RABBITMQ_CHECKIN_SYNC_EXCHANGE:-attendance.sync.events}
+  RABBITMQ_CHECKIN_SYNC_QUEUE: ${RABBITMQ_CHECKIN_SYNC_QUEUE:-attendance.sync.queue}
+  RABBITMQ_CHECKIN_SYNC_ROUTING_KEY: ${RABBITMQ_CHECKIN_SYNC_ROUTING_KEY:-attendance.checkin.completed}
   QR_SESSION_TTL_BUFFER_SECONDS: ${QR_SESSION_TTL_BUFFER_SECONDS:-300}
   QR_DUPLICATE_PENDING_TTL_SECONDS: ${QR_DUPLICATE_PENDING_TTL_SECONDS:-120}
   QR_DUPLICATE_COMPLETED_TTL_SECONDS: ${QR_DUPLICATE_COMPLETED_TTL_SECONDS:-86400}
@@ -231,7 +234,7 @@ services:
     expose:
       - "8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/qr/health', timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 3
