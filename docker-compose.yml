@@ -51,7 +51,7 @@ x-python-service: &python-service
   env_file:
     - .env.local
   networks:
-    - ttcs
+    - ttcs_internal
 
 services:
   gateway:
@@ -72,6 +72,7 @@ services:
     restart: unless-stopped
     networks:
       - ttcs
+      - ttcs_internal
 
   frontend:
     build:
@@ -102,7 +103,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - ttcs
+      - ttcs_internal
 
   redis:
     image: redis:7-alpine
@@ -119,7 +120,7 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - ttcs
+      - ttcs_internal
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -140,7 +141,26 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - ttcs
+      - ttcs_internal
+
+  auth-gateway:
+    <<: *python-service
+    build:
+      context: ../api_gateway/auth_gateway
+      dockerfile: Dockerfile
+    working_dir: /app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app
+    environment:
+      <<: *common-environment
+    volumes:
+      - ../api_gateway/auth_gateway:/app
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8080"
 
   be-service-api:
     <<: *python-service
@@ -267,3 +287,6 @@ volumes:
 networks:
   ttcs:
     name: ttcs_local
+  ttcs_internal:
+    name: ttcs_internal
+    driver: bridge
