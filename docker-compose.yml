@@ -89,15 +89,34 @@ services:
     networks:
       - ttcs
 
-  mongodb:
+  be-mongodb:
     image: mongo:7
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-ttcs_root}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me_mongo_root_password}
+      MONGO_INITDB_ROOT_USERNAME: ${BE_MONGO_INITDB_ROOT_USERNAME:-ttcs_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${BE_MONGO_INITDB_ROOT_PASSWORD:-change_me_mongo_root_password}
     ports:
-      - "${MONGO_HOST_PORT:-27017}:27017"
+      - "${BE_MONGO_HOST_PORT:-27017}:27017"
     volumes:
-      - mongodb_data:/data/db
+      - be_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ttcs_internal
+
+  qr-mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${QR_MONGO_INITDB_ROOT_USERNAME:-qr_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${QR_MONGO_INITDB_ROOT_PASSWORD:-change_me_qr_root_password}
+    ports:
+      - "${QR_MONGO_HOST_PORT:-27018}:27017"
+    volumes:
+      - qr_mongodb_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
       interval: 15s
@@ -158,7 +177,7 @@ services:
     volumes:
       - ../api_gateway/auth_gateway:/app
     depends_on:
-      mongodb:
+      be-mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -174,12 +193,15 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
     environment:
       <<: *common-environment
+      MONGO_HOST: be-mongodb
       MONGO_DATABASE: ${BE_MONGO_DATABASE:-ttcs}
+      MONGO_INITDB_ROOT_USERNAME: ${BE_MONGO_INITDB_ROOT_USERNAME:-ttcs_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${BE_MONGO_INITDB_ROOT_PASSWORD:-change_me_mongo_root_password}
       ENABLE_APP_SCHEDULER: "false"
     volumes:
       - ../be_service_ttcs:/app
     depends_on:
-      mongodb:
+      be-mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -203,12 +225,15 @@ services:
     command: python -m scheduler.main
     environment:
       <<: *common-environment
+      MONGO_HOST: be-mongodb
       MONGO_DATABASE: ${BE_MONGO_DATABASE:-ttcs}
+      MONGO_INITDB_ROOT_USERNAME: ${BE_MONGO_INITDB_ROOT_USERNAME:-ttcs_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${BE_MONGO_INITDB_ROOT_PASSWORD:-change_me_mongo_root_password}
       ENABLE_APP_SCHEDULER: "false"
     volumes:
       - ../be_service_ttcs:/app
     depends_on:
-      mongodb:
+      be-mongodb:
         condition: service_healthy
 
   qr-service-api:
@@ -220,12 +245,15 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
     environment:
       <<: *common-environment
+      MONGO_HOST: qr-mongodb
       MONGO_DATABASE: ${QR_MONGO_DATABASE:-qr_attendance_db}
+      MONGO_INITDB_ROOT_USERNAME: ${QR_MONGO_INITDB_ROOT_USERNAME:-qr_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${QR_MONGO_INITDB_ROOT_PASSWORD:-change_me_qr_root_password}
       ENABLE_APP_SCHEDULER: "false"
     volumes:
       - ../qr_service_be_ttcs:/app
     depends_on:
-      mongodb:
+      qr-mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -249,12 +277,15 @@ services:
     command: python -m worker.sync_worker
     environment:
       <<: *common-environment
+      MONGO_HOST: qr-mongodb
       MONGO_DATABASE: ${QR_MONGO_DATABASE:-qr_attendance_db}
+      MONGO_INITDB_ROOT_USERNAME: ${QR_MONGO_INITDB_ROOT_USERNAME:-qr_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${QR_MONGO_INITDB_ROOT_PASSWORD:-change_me_qr_root_password}
       ENABLE_APP_SCHEDULER: "false"
     volumes:
       - ../qr_service_be_ttcs:/app
     depends_on:
-      mongodb:
+      qr-mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -268,12 +299,15 @@ services:
     command: python -m worker.attendance_worker
     environment:
       <<: *common-environment
+      MONGO_HOST: qr-mongodb
       MONGO_DATABASE: ${QR_MONGO_DATABASE:-qr_attendance_db}
+      MONGO_INITDB_ROOT_USERNAME: ${QR_MONGO_INITDB_ROOT_USERNAME:-qr_root}
+      MONGO_INITDB_ROOT_PASSWORD: ${QR_MONGO_INITDB_ROOT_PASSWORD:-change_me_qr_root_password}
       ENABLE_APP_SCHEDULER: "false"
     volumes:
       - ../qr_service_be_ttcs:/app
     depends_on:
-      mongodb:
+      qr-mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -283,7 +317,8 @@ services:
 volumes:
   gateway_data:
   gateway_config:
-  mongodb_data:
+  be_mongodb_data:
+  qr_mongodb_data:
   redis_data:
   rabbitmq_data:
 
